@@ -1,0 +1,166 @@
+================================================================================
+ZOMATO BI CASE STUDY — COMPLETE PPT SLIDE DECK (TEXT FORMAT)
+TOPIC: BEYOND THE 5-STAR TRAP: MULTI-CRITERIA RESTAURANT DISCOVERY SYSTEM
+DATASET: 7,947 RESTAURANTS IN DELHI-NCR (ZOMATO PLATFORM)
+================================================================================
+
+--------------------------------------------------------------------------------
+QUICK COPY-PASTE FOR AI DECK WIZARDS / INPUT FORMS:
+--------------------------------------------------------------------------------
+
+[FIELD: WHICH DATA-QUALITY ISSUES DID YOU HANDLE, AND HOW? (STEP 2/3)]
+1. Missing Values: Imputed 9 missing cuisine records as 'Not Specified' and parsed primary cuisines from 1,825 multi-label combinations.
+2. Zero-Cost Outliers: Identified 18 zero-cost records (9 in India) and imputed them using a two-stage hierarchical median based on City and Price Tier to avoid division-by-zero in budget formulas.
+3. Unrated Cold-Start Listings: Handled 2,139 unrated records (26.9% of total with rating 0.0) by creating an explicit 'Is_Rated' boolean flag and 'Rating_Status' dimension. This preserved new merchant onboarding while preventing a downward bias on active rating benchmarks (true active mean: 3.28 vs biased mean: 2.67).
+4. Power-Law Review Skew: Customer review votes ranged from 0 to 7,931 with a median of only 19. Applied logarithmic transformation [ln(1 + Votes)] to linearize engagement and eliminate the popularity monopoly of legacy mega-chains.
+5. Invalid GPS Coordinates: Flagged 497 records located at (0.0, 0.0) Null Island using a boolean 'Has_Valid_Coordinates' flag to ensure map accuracy.
+6. Service Fragmentation: Combined disconnected binary flags into a unified 4-class 'Service_Profile' (Both, Online Delivery Only, Table Booking Only, Dine-in Only).
+
+[FIELD: WHAT ARE THE COMPONENT FORMULAS AND PRESET WEIGHTS? (STEP 3/3)]
+Copy and paste this exact block:
+
+1. COMPONENT FORMULAS (Standardized on 0 to 100 Utility Scale):
+- Quality Score (S_rating): (Aggregate Rating / 5.0) * 100
+- Popularity Score (S_engagement): [ln(1 + Votes) / ln(1 + 7931)] * 100 (Log-scaled to eliminate power-law bias)
+- Budget Fit Score (S_affordability): 
+  * If Cost <= Budget: 100 pts
+  * If Budget < Cost <= 2 * Budget: 100 - 100 * [(Cost - Budget) / Budget] (Continuous linear penalty)
+  * If Cost > 2 * Budget: 0 pts
+- Service Utility (S_service): 20 (base dine-in) + 50 (if Online Delivery = 'Yes') + 30 (if Table Booking = 'Yes')
+
+2. COMPOSITE RELEVANCE SCORE FORMULA:
+Relevance Score = (w_quality * S_quality + w_popularity * S_popularity + w_budget * S_budget + w_service * S_service) / Total Weight
+
+3. PRESET WEIGHTS (% ALLOCATION):
+- Balanced (Default): Quality 40%, Popularity 25%, Budget 20%, Service 15%
+- Gourmet (Quality-First): Quality 60%, Popularity 25%, Budget 5%, Service 10%
+- Budget Hunter (Value-First): Quality 25%, Popularity 15%, Budget 50%, Service 10%
+- Delivery & Convenience: Quality 25%, Popularity 15%, Budget 20%, Service 40%
+
+--------------------------------------------------------------------------------
+SLIDE 1: TITLE SLIDE
+--------------------------------------------------------------------------------
+Title: Beyond the 5-Star Trap: A Multi-Criteria Restaurant Discovery & Relevance System
+Subtitle: Applied Business Intelligence, Dimensional Modeling & Tableau Analytics
+Case Study: Zomato Limited (Delhi-NCR Market, 7,947 Restaurants)
+Author: Student Presentation (B.Sc Data Science & AI)
+Core Message: Eliminating consumer choice overload and search abandonment through transparent, multi-attribute decision intelligence.
+
+--------------------------------------------------------------------------------
+SLIDE 2: THE BUSINESS PROBLEM & CHOICE OVERLOAD
+--------------------------------------------------------------------------------
+Heading: The Dilemma of Choice Overload in Hyperlocal Food Search
+Bullet Points:
+* Massive Choice Friction: In high-density dining hubs like Delhi-NCR, users face 7,947 restaurant options, causing decision paralysis (Schwartz, 2004).
+* The Popularity Trap: Default sorting by total review volume concentrates 70% of traffic on legacy chains (mean cost ₹1,470 vs ₹450 market median).
+* Operational Mismatch: 70% of the top 10 most-reviewed venues offer dine-in only and cannot fulfill online home delivery.
+* The 5-Star Fallacy: Sorting solely by rating elevates low-sample niche venues while ignoring diner budgets.
+* Hidden Gem Invisibility: 194 elite restaurants (rating >= 4.0, 53.6% delivery readiness) are pushed to page 10+ due to lower review counts (< 200).
+
+--------------------------------------------------------------------------------
+SLIDE 3: DATA INTEGRATION & ETL QUALITY PIPELINE
+--------------------------------------------------------------------------------
+Heading: Transforming Raw Operational Data into Clean Warehouse Extracts
+Bullet Points:
+* Multi-Source Ingestion: Integrated raw restaurant listing dump (9,551 rows) with master Country lookup and municipal locality hierarchies.
+* Missing Cuisines: Imputed 9 null cuisine fields with 'Not Specified'; extracted Primary Cuisine and Cuisine Count.
+* Zero-Cost Imputation: Replaced 18 zero-cost rows using City x Price Tier median costs.
+* Cold-Start Isolation: Flagged 2,139 unrated venues with 'Is_Rated = 0', isolating them without deleting valuable merchant data.
+* Logarithmic Scaling: Compressed extreme review skew (0 to 7,931 votes) using ln(1 + Votes) to reflect diminishing marginal returns.
+* Spatial Audit: Tagged 497 invalid (0, 0) coordinates to maintain dual-axis map visual integrity.
+
+--------------------------------------------------------------------------------
+SLIDE 4: DIMENSIONAL MODELING — THE KIMBALL STAR SCHEMA
+--------------------------------------------------------------------------------
+Heading: Enterprise Star Schema Architecture for OLAP Analytics
+Bullet Points:
+* Central Fact Table: FACT_RESTAURANT_PERFORMANCE
+  - Grain: Exactly 1 row per physical restaurant outlet listing profile.
+  - Additive Facts: Listing_Count (=1), Review Votes, Cleaned Average Cost.
+  - Semi-Additive / Normalized Metrics: Rating (0-5), Log-Votes, 0-100 Relevance Score.
+* 6 Conformed Dimension Tables (Surrogate Keys):
+  - DIM_RESTAURANT (Natural ID, brand name, address, chain indicator)
+  - DIM_LOCATION (Locality, City, Country, Latitude, Longitude)
+  - DIM_CUISINE (Primary cuisine, high-level category, menu diversity)
+  - DIM_SERVICE_PROFILE (Online delivery, table booking, active dispatch)
+  - DIM_PRICE_TIER (Price range 1 to 4, currency, budget class)
+  - DIM_RESTAURANT_SEGMENT (LOD segment, rating tier, strategic action)
+* Performance Advantage: Enables sub-second aggregation without expensive SQL joins.
+
+--------------------------------------------------------------------------------
+SLIDE 5: MULTI-DIMENSIONAL OLAP CAPABILITIES
+--------------------------------------------------------------------------------
+Heading: Accelerating Decision Support with OLAP Cube Operations
+Bullet Points:
+* Roll-Up: Summarizing granular outlet performance up to Locality (GK-1), City (New Delhi), and National market levels.
+* Drill-Down: De-aggregating executive KPI cards down to street-level restaurant clusters.
+* Slice: Isolating the Delhi-NCR geographic market (N = 7,947) for unified INR currency analysis.
+* Dice: Intersecting [Budget Tier 1] x [North Indian] x [Online Delivery = Yes].
+* Pivot: Cross-tabulating Price Tiers across Columns and Rating Categories down Rows to monitor merchant distribution.
+
+--------------------------------------------------------------------------------
+SLIDE 6: THE MULTI-CRITERIA RELEVANCE SCORING MODEL
+--------------------------------------------------------------------------------
+Heading: A Transparent, User-Tunable Decision Utility Formula
+Bullet Points:
+* Formula: Relevance Score = (w_r * S_rating + w_e * S_engagement + w_a * S_affordability + w_s * S_service) / Total Weight
+* Quality Score (S_rating): (Aggregate Rating / 5.0) * 100
+* Social Proof Score (S_engagement): [ln(1 + Votes) / ln(1 + 7931)] * 100
+* Budget Fit Score (S_affordability):
+  - 100 pts if Cost <= Budget
+  - Continuous linear penalty for overages up to 2x Budget: 100 - 100 * [(Cost - Budget) / Budget]
+  - 0 pts if Cost > 2x Budget
+* Service Utility (S_service): 20 baseline + 50 (Delivery) + 30 (Table Booking)
+* Persona Presets: Balanced (40/25/20/15), Gourmet (60/25/5/10), Budget Hunter (25/15/50/10), Delivery (25/15/20/40).
+
+--------------------------------------------------------------------------------
+SLIDE 7: INTERACTIVE TABLEAU PUBLIC DASHBOARD SUITE
+--------------------------------------------------------------------------------
+Heading: 3 Connected Interactive Dashboards (Resolution: 1366 x 768)
+Bullet Points:
+* Dashboard 1: Ecosystem & Spatial Overview
+  - Executive KPI BAN cards (Inventory, Avg Rating, Median Cost, Delivery %).
+  - Dual-Axis Spatial Map (Density + Symbol scatter).
+  - Primary Cuisine Treemap and Dining Cost Distribution Histogram.
+* Dashboard 2: Strategic Segmentation (LOD Analysis)
+  - Quality vs. Social Proof Scatter with reference thresholds.
+  - Fixed LOD Locality Price Benchmark: { FIXED [Locality] : AVG([Average Cost]) }.
+  - Locality Hidden Gems Bar Chart and Price-Rating Highlight Matrix.
+* Dashboard 3: Personalized Ranking Simulator
+  - Dynamic user sliders (Budget, Min Rating, Top N, Personas).
+  - Interactive Table displaying live calculated ranks and score decomposition.
+
+--------------------------------------------------------------------------------
+SLIDE 8: EMPIRICAL VALIDATION & RANKING COMPARISON
+--------------------------------------------------------------------------------
+Heading: Side-by-Side Proof: Traditional Sorting vs. Relevance Engine
+Bullet Points (Simulation: ₹800 Budget, Balanced Weights):
+* Average Dining Cost: Drops from ₹1,470 down to ₹515 (64.9% cost reduction).
+* Online Delivery Readiness: Increases from 30.0% to 100.0% (+70 percentage points).
+* Quality Maintenance: Average customer rating preserved at elite 4.28 / 5.0.
+* List Diversity: 9 out of 10 recommendations are fresh, high-utility discoveries (only 1 overlap: Saravana Bhavan).
+* Impact: Solves budget shock and eliminates delivery ordering abandonment.
+
+--------------------------------------------------------------------------------
+SLIDE 9: STRATEGIC BUSINESS RECOMMENDATIONS
+--------------------------------------------------------------------------------
+Heading: Actionable Platform Recommendations for Zomato
+Bullet Points:
+1. Dynamic Multi-Slider Search: Replace static single-column sorting with user-controlled priority sliders (Expected: 12% drop in session bounce rate).
+2. "Hidden Gem" Algorithmic Badging: Deploy a dedicated carousel for high-rated neighborhood venues with N >= 30 reviews (Expected: 20% first-order lift for new merchants).
+3. Intent-Decoupled Search Feeds: Split search intent into Delivery Mode vs. Dine-Out Mode to prevent delivery checkout drop-offs.
+4. "Exceptional Value" Badging: Highlight venues with rating >= 4.0 that are priced below their locality LOD benchmark.
+
+--------------------------------------------------------------------------------
+SLIDE 10: LIMITATIONS, FUTURE SCOPE & CONCLUSION
+--------------------------------------------------------------------------------
+Heading: Academic Integrity, Roadmap & Project Conclusion
+Bullet Points:
+* Disclosed Limitations: Cross-sectional snapshot lacking transaction timestamps; prototype is an interpretable decision aid, not a replica of Zomato's proprietary production algorithm.
+* Future Roadmap: Integrate real-time GPS routing APIs and train supervised re-rankers on user clickstream data.
+* Conclusion: Successfully demonstrated how Kimball dimensional modeling, automated ETL pipelines, and Tableau Business Intelligence can resolve choice overload and create an equitable restaurant discovery ecosystem.
+
+================================================================================
+END OF PPT SLIDE DECK TEXT FILE
+================================================================================
+

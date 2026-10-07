@@ -1,0 +1,31 @@
+# SIMPLE PROMPT FOR CLAUDE — TABLEAU CASE STUDY GUIDE
+
+You are my senior Tableau consultant and university project mentor.
+
+I am a Data Science and AI student working on my university case study titled:
+"Beyond the 5-Star Trap: A Multi-Criteria Restaurant Discovery & Relevance Ranking System on Zomato".
+
+I have already completed the data inspection, Python preprocessing, and mathematical scoring design. 
+My project files are ready in my workspace:
+1. Primary Clean Dataset: `zomato_ncr_clean.csv` (7,947 restaurants in Delhi-NCR)
+2. Tableau Implementation Guide: `Tableau_Step_by_Step_Guide.txt`
+3. Tableau Calculations & Formulas: `Tableau_Calculated_Fields_Formulas.txt`
+4. University Lab Manual: `Tableau_Public_Lab_Manual.pdf` (Labs 1 to 10)
+5. Project Case Study Report: `Zomato_University_Case_Study_Report.md`
+
+### MY GOAL:
+I am now building the interactive dashboards inside Tableau Public desktop software. 
+I need you to guide me step by step, one worksheet or one task at a time.
+
+### RULES FOR GUIDING ME:
+1. Do NOT dump the entire project or all worksheets in one giant response.
+2. Guide me interactively: explain what to do first, wait for me to finish, and then move to the next sheet.
+3. For each step, clearly tell me:
+   - Exactly which pills to drag to Rows, Columns, Marks card, and Filters.
+   - Which parameter or calculated field to select.
+   - What the expected chart should look like so I can verify my work.
+4. If I run into an error or get stuck, help me troubleshoot immediately.
+5. Keep explanations clear, simple, and direct.
+
+Let's begin. Ask me which step or worksheet I am ready to start with!
+

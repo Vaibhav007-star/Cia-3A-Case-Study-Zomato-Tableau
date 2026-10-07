@@ -1,0 +1,297 @@
+================================================================================
+ZOMATO RESTAURANT DISCOVERY & PERSONALIZED RANKING SYSTEM
+COMPLETE TABLEAU CALCULATED FIELDS & PARAMETERS REFERENCE
+================================================================================
+All formulas below are verified and syntax-compatible with Tableau Public.
+Simply copy and paste them directly into the Tableau Calculated Field Editor.
+================================================================================
+
+--------------------------------------------------------------------------------
+PART 1: PARAMETERS CONFIGURATION
+--------------------------------------------------------------------------------
+Create these parameters first by right-clicking in the Data Pane -> "Create Parameter..."
+
+1. Parameter Name: p Budget
+   - Data Type: Integer
+   - Current Value: 800
+   - Allowable Values: Range
+   - Minimum: 100
+   - Maximum: 5000
+   - Step Size: 50
+   - Display Format: Currency (Custom) -> Prefix: Rs. 
+
+2. Parameter Name: p Min Rating
+   - Data Type: Float
+   - Current Value: 3.0
+   - Allowable Values: Range
+   - Minimum: 0.0
+   - Maximum: 4.8
+   - Step Size: 0.1
+   - Display Format: Number (Custom) -> 1 Decimal place
+
+3. Parameter Name: p Preset
+   - Data Type: String
+   - Current Value: Balanced
+   - Allowable Values: List
+   - List of Values:
+     * Balanced
+     * Gourmet
+     * Budget
+     * Delivery
+     * Custom
+
+4. Parameter Name: p Rating Weight
+   - Data Type: Integer
+   - Current Value: 40
+   - Allowable Values: Range
+   - Minimum: 0
+   - Maximum: 100
+   - Step Size: 5
+
+5. Parameter Name: p Popularity Weight
+   - Data Type: Integer
+   - Current Value: 25
+   - Allowable Values: Range
+   - Minimum: 0
+   - Maximum: 100
+   - Step Size: 5
+
+6. Parameter Name: p Budget Weight
+   - Data Type: Integer
+   - Current Value: 20
+   - Allowable Values: Range
+   - Minimum: 0
+   - Maximum: 100
+   - Step Size: 5
+
+7. Parameter Name: p Service Weight
+   - Data Type: Integer
+   - Current Value: 15
+   - Allowable Values: Range
+   - Minimum: 0
+   - Maximum: 100
+   - Step Size: 5
+
+8. Parameter Name: p Top N
+   - Data Type: Integer
+   - Current Value: 10
+   - Allowable Values: List
+   - List of Values: 5, 10, 15, 20
+
+9. Parameter Name: p Want Online
+   - Data Type: String
+   - Current Value: Any
+   - Allowable Values: List
+   - List of Values:
+     * Any
+     * Yes
+     * No
+
+
+--------------------------------------------------------------------------------
+PART 2: DYNAMIC WEIGHT CALCULATED FIELDS
+--------------------------------------------------------------------------------
+Right-click in Data Pane -> "Create Calculated Field..."
+
+[Weight Quality]
+--------------------------------------------------------------------------------
+CASE [p Preset]
+    WHEN 'Balanced' THEN 40
+    WHEN 'Gourmet'  THEN 60
+    WHEN 'Budget'   THEN 25
+    WHEN 'Delivery' THEN 25
+    ELSE [p Rating Weight]
+END
+
+
+[Weight Popularity]
+--------------------------------------------------------------------------------
+CASE [p Preset]
+    WHEN 'Balanced' THEN 25
+    WHEN 'Gourmet'  THEN 25
+    WHEN 'Budget'   THEN 15
+    WHEN 'Delivery' THEN 15
+    ELSE [p Popularity Weight]
+END
+
+
+[Weight Budget]
+--------------------------------------------------------------------------------
+CASE [p Preset]
+    WHEN 'Balanced' THEN 20
+    WHEN 'Gourmet'  THEN 5
+    WHEN 'Budget'   THEN 50
+    WHEN 'Delivery' THEN 20
+    ELSE [p Budget Weight]
+END
+
+
+[Weight Service]
+--------------------------------------------------------------------------------
+CASE [p Preset]
+    WHEN 'Balanced' THEN 15
+    WHEN 'Gourmet'  THEN 10
+    WHEN 'Budget'   THEN 10
+    WHEN 'Delivery' THEN 40
+    ELSE [p Service Weight]
+END
+
+
+[Total Weight]
+--------------------------------------------------------------------------------
+[Weight Quality] + [Weight Popularity] + [Weight Budget] + [Weight Service]
+
+
+--------------------------------------------------------------------------------
+PART 3: NORMALIZED COMPONENT SCORES (0 TO 100 UTILITY SCALE)
+--------------------------------------------------------------------------------
+
+[Score Quality]
+--------------------------------------------------------------------------------
+IF [Is_Rated] = 1 THEN 
+    ([Aggregate_Rating] / 5.0) * 100.0 
+ELSE 
+    0.0 
+END
+
+
+[Score Popularity]
+--------------------------------------------------------------------------------
+// Logarithmic normalization to handle extreme power-law skew in reviews
+// LN(1 + 7931) = 8.9787 (Max votes in Delhi-NCR)
+(LN(1 + [Votes]) / 8.9787) * 100.0
+
+
+[Score Budget]
+--------------------------------------------------------------------------------
+// Piecewise linear budget penalty
+IF [Average_Cost_Clean] <= [p Budget] THEN 
+    100.0
+ELSEIF [Average_Cost_Clean] <= (2 * [p Budget]) THEN 
+    100.0 - 100.0 * (([Average_Cost_Clean] - [p Budget]) / [p Budget])
+ELSE 
+    0.0
+END
+
+
+[Score Service]
+--------------------------------------------------------------------------------
+// Operational service availability utility
+20.0 + 
+(IF [Has_Online_Delivery] = 'Yes' THEN 50.0 ELSE 0.0 END) + 
+(IF [Has_Table_Booking] = 'Yes' THEN 30.0 ELSE 0.0 END)
+
+
+--------------------------------------------------------------------------------
+PART 4: COMPOSITE RELEVANCE SCORE & RANKING FORMULAS
+--------------------------------------------------------------------------------
+
+[Relevance Score]
+--------------------------------------------------------------------------------
+IF [Total Weight] = 0 THEN 
+    0.0 
+ELSE
+    ( [Weight Quality]    * [Score Quality] + 
+      [Weight Popularity] * [Score Popularity] + 
+      [Weight Budget]     * [Score Budget] + 
+      [Weight Service]    * [Score Service] ) / [Total Weight]
+END
+
+
+[Rank Relevance]
+--------------------------------------------------------------------------------
+// Table Calculation: Compute Using -> Table (Down) or Cell level
+RANK_UNIQUE(SUM([Relevance Score]), 'desc')
+
+
+[Rank Traditional]
+--------------------------------------------------------------------------------
+// Traditional popularity sorting by total reviews
+RANK_UNIQUE(SUM([Votes]), 'desc')
+
+
+[In Top N Filter]
+--------------------------------------------------------------------------------
+// Put on Filter shelf and set to TRUE
+[Rank Relevance] <= [p Top N]
+
+
+[Rank Difference]
+--------------------------------------------------------------------------------
+// Positive indicates rank improvement under Relevance Score
+[Rank Traditional] - [Rank Relevance]
+
+
+--------------------------------------------------------------------------------
+PART 5: LEVEL OF DETAIL (LOD) EXPRESSIONS (LAB 7.2 SYLLABUS ALIGNMENT)
+--------------------------------------------------------------------------------
+
+[LOD Locality Avg Cost]
+--------------------------------------------------------------------------------
+{ FIXED [Locality] : AVG([Average_Cost_Clean]) }
+
+
+[LOD Locality Median Rating]
+--------------------------------------------------------------------------------
+{ FIXED [Locality] : MEDIAN([Aggregate_Rating]) }
+
+
+[LOD Locality Total Reviews]
+--------------------------------------------------------------------------------
+{ FIXED [Locality] : SUM([Votes]) }
+
+
+[Cost vs Locality Benchmark]
+--------------------------------------------------------------------------------
+IF [Average_Cost_Clean] < [LOD Locality Avg Cost] THEN 
+    'Below Locality Avg (Value)'
+ELSEIF [Average_Cost_Clean] = [LOD Locality Avg Cost] THEN 
+    'At Locality Avg'
+ELSE 
+    'Above Locality Avg (Premium)'
+END
+
+
+--------------------------------------------------------------------------------
+PART 6: STRATEGIC SEGMENTATION FORMULAS
+--------------------------------------------------------------------------------
+
+[Segment LOD]
+--------------------------------------------------------------------------------
+IF [Is_Rated] = 0 THEN
+    'Unrated / New Entrant'
+ELSEIF [Aggregate_Rating] >= 4.0 AND [Votes] >= 200 THEN
+    'Market Leader'
+ELSEIF [Aggregate_Rating] >= 4.0 AND [Votes] < 200 THEN
+    'Hidden Gem'
+ELSEIF [Aggregate_Rating] >= 3.0 AND [Votes] >= 200 THEN
+    'Popular Volume Driver'
+ELSEIF [Aggregate_Rating] >= 3.0 AND [Votes] < 200 THEN
+    'Average Performer'
+ELSE
+    'Underperforming'
+END
+
+
+[Delivery Match Filter]
+--------------------------------------------------------------------------------
+IF [p Want Online] = 'Any' THEN 
+    TRUE
+ELSEIF [p Want Online] = 'Yes' AND [Has_Online_Delivery] = 'Yes' THEN 
+    TRUE
+ELSEIF [p Want Online] = 'No' AND [Has_Online_Delivery] = 'No' THEN 
+    TRUE
+ELSE 
+    FALSE
+END
+
+
+[Rating Eligibility Filter]
+--------------------------------------------------------------------------------
+[Is_Rated] = 1 AND [Aggregate_Rating] >= [p Min Rating]
+
+
+================================================================================
+END OF FORMULAS REFERENCE
+================================================================================
+

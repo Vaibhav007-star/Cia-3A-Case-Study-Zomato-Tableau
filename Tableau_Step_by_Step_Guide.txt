@@ -1,0 +1,466 @@
+================================================================================
+TABLEAU PUBLIC STEP-BY-STEP IMPLEMENTATION GUIDE
+PROJECT: BEYOND THE 5-STAR TRAP — ZOMATO RESTAURANT DISCOVERY & RANKING SYSTEM
+================================================================================
+Target Audience: Student / Academic Presentation / Lab Exam Defense
+Software: Tableau Public (Desktop Edition)
+Primary Dataset: zomato_ncr_clean.csv (or zomato_cleaned.csv)
+Location: c:\Projects\Zomotao\data\processed\zomato_ncr_clean.csv
+================================================================================
+
+TABLE OF CONTENTS:
+1. Connecting to Data & Field Setup
+2. Creating Interactive Parameters
+3. Creating Calculated Fields (Weights, Utility Scores, Relevance Rank)
+4. Building Worksheets Step-by-Step (Worksheets 1 to 10)
+5. Assembling Dashboard 1: Restaurant Ecosystem Overview
+6. Assembling Dashboard 2: Strategic Restaurant Segmentation (LOD Matrix)
+7. Assembling Dashboard 3: Personalized Ranking Simulator
+8. Creating the Tableau Story (Narrative Arc)
+9. Saving and Publishing to Tableau Public Profile
+
+================================================================================
+STEP 1: CONNECTING TO DATA & FIELD SETUP
+================================================================================
+1. Launch Tableau Public from your Start Menu.
+2. Under the "Connect" pane on the left side, click on "Text file".
+3. Browse to your project folder:
+   c:\Projects\Zomotao\data\processed\zomato_ncr_clean.csv
+   (Or select zomato_cleaned.csv in the root folder) and click Open.
+4. On the Data Source page:
+   - Verify all 7,947 rows are loaded.
+   - Check data type icons above column headers:
+     * Restaurant_ID: Ensure it is set to Number (Whole). Right-click -> "Convert to Dimension".
+     * Longitude: Ensure icon is a Globe -> Geographic Role -> Longitude.
+     * Latitude: Ensure icon is a Globe -> Geographic Role -> Latitude.
+     * City: Globe -> City.
+     * Locality: String (Abc).
+     * Average_Cost_Clean: Number (Decimal) / Measure.
+     * Aggregate_Rating: Number (Decimal) / Measure.
+     * Votes: Number (Whole) / Measure.
+     * Has_Online_Delivery: String (Abc).
+     * Has_Table_Booking: String (Abc).
+     * Restaurant_Segment: String (Abc).
+5. Click on the "Sheet 1" tab at the bottom to enter the workspace.
+
+================================================================================
+STEP 2: CREATING INTERACTIVE PARAMETERS
+================================================================================
+In the left Data Pane, click the small down arrow next to the Search box (or right-click empty white space) and select "Create Parameter...":
+
+1. [p Budget]
+   - Name: p Budget
+   - Data type: Integer
+   - Current value: 800
+   - Allowable values: Range
+   - Minimum: 100 | Maximum: 5000 | Step size: 50
+   - Click OK.
+
+2. [p Min Rating]
+   - Name: p Min Rating
+   - Data type: Float
+   - Current value: 3.0
+   - Allowable values: Range
+   - Minimum: 0.0 | Maximum: 4.8 | Step size: 0.1
+   - Click OK.
+
+3. [p Preset]
+   - Name: p Preset
+   - Data type: String
+   - Current value: Balanced
+   - Allowable values: List
+   - List entries:
+     Balanced
+     Gourmet
+     Budget
+     Delivery
+     Custom
+   - Click OK.
+
+4. [p Rating Weight]
+   - Name: p Rating Weight
+   - Data type: Integer
+   - Current value: 40
+   - Allowable values: Range (Min: 0, Max: 100, Step: 5)
+   - Click OK.
+
+5. [p Popularity Weight]
+   - Name: p Popularity Weight
+   - Data type: Integer
+   - Current value: 25
+   - Allowable values: Range (Min: 0, Max: 100, Step: 5)
+   - Click OK.
+
+6. [p Budget Weight]
+   - Name: p Budget Weight
+   - Data type: Integer
+   - Current value: 20
+   - Allowable values: Range (Min: 0, Max: 100, Step: 5)
+   - Click OK.
+
+7. [p Service Weight]
+   - Name: p Service Weight
+   - Data type: Integer
+   - Current value: 15
+   - Allowable values: Range (Min: 0, Max: 100, Step: 5)
+   - Click OK.
+
+8. [p Top N]
+   - Name: p Top N
+   - Data type: Integer
+   - Current value: 10
+   - Allowable values: List -> Values: 5, 10, 15, 20
+   - Click OK.
+
+9. [p Want Online]
+   - Name: p Want Online
+   - Data type: String
+   - Current value: Any
+   - Allowable values: List -> Values: Any, Yes, No
+   - Click OK.
+
+================================================================================
+STEP 3: CREATING CALCULATED FIELDS
+================================================================================
+Right-click in the Data Pane -> "Create Calculated Field...". Paste formulas from Tableau_Calculated_Fields_Formulas.txt:
+
+1. [Weight Quality]
+   CASE [p Preset]
+       WHEN 'Balanced' THEN 40
+       WHEN 'Gourmet'  THEN 60
+       WHEN 'Budget'   THEN 25
+       WHEN 'Delivery' THEN 25
+       ELSE [p Rating Weight]
+   END
+
+2. [Weight Popularity]
+   CASE [p Preset]
+       WHEN 'Balanced' THEN 25
+       WHEN 'Gourmet'  THEN 25
+       WHEN 'Budget'   THEN 15
+       WHEN 'Delivery' THEN 15
+       ELSE [p Popularity Weight]
+   END
+
+3. [Weight Budget]
+   CASE [p Preset]
+       WHEN 'Balanced' THEN 20
+       WHEN 'Gourmet'  THEN 5
+       WHEN 'Budget'   THEN 50
+       WHEN 'Delivery' THEN 20
+       ELSE [p Budget Weight]
+   END
+
+4. [Weight Service]
+   CASE [p Preset]
+       WHEN 'Balanced' THEN 15
+       WHEN 'Gourmet'  THEN 10
+       WHEN 'Budget'   THEN 10
+       WHEN 'Delivery' THEN 40
+       ELSE [p Service Weight]
+   END
+
+5. [Total Weight]
+   [Weight Quality] + [Weight Popularity] + [Weight Budget] + [Weight Service]
+
+6. [Score Quality]
+   IF [Is_Rated] = 1 THEN ([Aggregate_Rating] / 5.0) * 100.0 ELSE 0.0 END
+
+7. [Score Popularity]
+   (LN(1 + [Votes]) / 8.9787) * 100.0
+
+8. [Score Budget]
+   IF [Average_Cost_Clean] <= [p Budget] THEN 
+       100.0
+   ELSEIF [Average_Cost_Clean] <= (2 * [p Budget]) THEN 
+       100.0 - 100.0 * (([Average_Cost_Clean] - [p Budget]) / [p Budget])
+   ELSE 
+       0.0
+   END
+
+9. [Score Service]
+   20.0 + (IF [Has_Online_Delivery] = 'Yes' THEN 50.0 ELSE 0.0 END) + (IF [Has_Table_Booking] = 'Yes' THEN 30.0 ELSE 0.0 END)
+
+10. [Relevance Score]
+   IF [Total Weight] = 0 THEN 0.0 ELSE
+       ( [Weight Quality] * [Score Quality] + 
+         [Weight Popularity] * [Score Popularity] + 
+         [Weight Budget] * [Score Budget] + 
+         [Weight Service] * [Score Service] ) / [Total Weight]
+   END
+
+11. [Rank Relevance]
+   RANK_UNIQUE(SUM([Relevance Score]), 'desc')
+
+12. [Rank Traditional]
+   RANK_UNIQUE(SUM([Votes]), 'desc')
+
+13. [In Top N Filter]
+   [Rank Relevance] <= [p Top N]
+
+14. [LOD Locality Avg Cost]
+   { FIXED [Locality] : AVG([Average_Cost_Clean]) }
+
+15. [Delivery Match Filter]
+   IF [p Want Online] = 'Any' THEN TRUE
+   ELSEIF [p Want Online] = 'Yes' AND [Has_Online_Delivery] = 'Yes' THEN TRUE
+   ELSEIF [p Want Online] = 'No' AND [Has_Online_Delivery] = 'No' THEN TRUE
+   ELSE FALSE END
+
+================================================================================
+STEP 4: BUILDING WORKSHEETS STEP-BY-STEP
+================================================================================
+
+--------------------------------------------------------------------------------
+WORKSHEET 1: BAN_Key_Metrics (Executive KPI Cards)
+--------------------------------------------------------------------------------
+- Purpose: Display high-level summary totals at the top of Dashboard 1.
+- Setup:
+  1. Rename sheet to: BAN_Key_Metrics
+  2. Drag "Measure Names" to Columns shelf.
+  3. Drag "Measure Values" to Text mark.
+  4. In the Measure Values card shelf, keep only:
+     - Distinct Count of Restaurant_ID -> CNTD(Restaurant_ID)
+     - Average of Aggregate_Rating -> AVG(Aggregate_Rating)
+     - Median of Average_Cost_Clean -> MEDIAN(Average_Cost_Clean)
+     - Sum of Votes -> SUM(Votes)
+  5. Format numbers cleanly:
+     - Right-click MEDIAN(Average_Cost_Clean) -> Format -> Currency -> Prefix "Rs. "
+     - Right-click AVG(Aggregate_Rating) -> Format -> 2 decimals.
+  6. Set Marks card to: Square or Text. Set Fit to "Entire View".
+
+--------------------------------------------------------------------------------
+WORKSHEET 2: Map_Spatial_Density (Dual-Axis Map - Lab 4)
+--------------------------------------------------------------------------------
+- Purpose: Show restaurant geographic distribution across Delhi-NCR.
+- Setup:
+  1. Rename sheet to: Map_Spatial_Density
+  2. Drag [Longitude] to Columns shelf.
+  3. Drag [Latitude] to Rows shelf.
+  4. Hold Ctrl and drag [Latitude] next to itself on Rows shelf (creates two Latitude pills).
+  5. Right-click the second [Latitude] pill -> Select "Dual Axis".
+  6. On the Marks card for the 1st Latitude layer:
+     - Mark type: Density (or Map).
+     - Color: Orange-Blue diverging or Dark theme density.
+  7. On the Marks card for the 2nd Latitude layer:
+     - Mark type: Circle.
+     - Drag [Price_Tier] to Color.
+     - Drag [Votes] to Size.
+     - Drag [Restaurant_Name], [Locality], [Aggregate_Rating], [Average_Cost_Clean] to Tooltip.
+  8. Drag [Has_Valid_Coordinates] to Filters shelf -> Check "True".
+  9. Menu: Map -> Background Layers -> Select "Streets" or "Light".
+
+--------------------------------------------------------------------------------
+WORKSHEET 3: Treemap_Cuisines (Lab 6 Treemap)
+--------------------------------------------------------------------------------
+- Purpose: Visualize primary cuisine market share and quality.
+- Setup:
+  1. Rename sheet to: Treemap_Cuisines
+  2. Drag [Primary_Cuisine] to Detail mark.
+  3. Drag CNTD([Restaurant_ID]) to Size mark.
+  4. Drag AVG([Aggregate_Rating]) to Color mark (Palette: Green-Gold Diverging).
+  5. Drag [Primary_Cuisine] and CNTD([Restaurant_ID]) to Label mark.
+  6. Filter: Drag [Primary_Cuisine] to Filters shelf -> Top by Field -> Top 15 by CNTD(Restaurant_ID).
+
+--------------------------------------------------------------------------------
+WORKSHEET 4: Hist_Cost_Distribution (Lab 3 Histogram)
+--------------------------------------------------------------------------------
+- Purpose: Show the cost distribution and highlight delivery availability.
+- Setup:
+  1. Rename sheet to: Hist_Cost_Distribution
+  2. Right-click [Average_Cost_Clean] in Data Pane -> Create -> Bins... (Bin Size = 100).
+  3. Drag [Average_Cost_Clean (bin)] to Columns shelf.
+  4. Drag CNT([Restaurant_ID]) to Rows shelf.
+  5. Drag [Has_Online_Delivery] to Color mark.
+  6. Set View to "Standard" or "Fit Width".
+
+--------------------------------------------------------------------------------
+WORKSHEET 5: Scatter_LOD_Segmentation (Lab 6 & Lab 7.2 LOD)
+--------------------------------------------------------------------------------
+- Purpose: Plot Quality vs Engagement to reveal the "Hidden Gems" quadrant.
+- Setup:
+  1. Rename sheet to: Scatter_LOD_Segmentation
+  2. Drag [Score Popularity] (or Log_Votes) to Columns shelf.
+  3. Drag [Aggregate_Rating] to Rows shelf.
+  4. Drag [Restaurant_ID] to Detail mark (breaks into individual points).
+  5. Drag [Restaurant_Segment] to Color mark.
+     - Assign Colors:
+       * Market Leader: Dark Blue
+       * Hidden Gem: Bright Orange / Amber
+       * Popular Volume Driver: Purple
+       * Average Performer: Slate Gray
+       * Underperforming: Light Coral
+  6. Drag [Restaurant_Name], [Locality], [Average_Cost_Clean], [Votes] to Tooltip.
+  7. Add Reference Lines (Analytics Pane):
+     - Drag "Constant Line" onto Rows shelf at 4.0 (Label: "Quality Threshold 4.0★").
+     - Drag "Constant Line" onto Columns shelf at 59.2 (Equivalent to 200 votes).
+
+--------------------------------------------------------------------------------
+WORKSHEET 6: Bar_Hidden_Gems_Locality (Lab 3 Sorted Bar)
+--------------------------------------------------------------------------------
+- Purpose: Highlight localities with the highest concentration of Hidden Gems.
+- Setup:
+  1. Rename sheet to: Bar_Hidden_Gems_Locality
+  2. Drag [Locality] to Rows shelf.
+  3. Drag CNTD([Restaurant_ID]) to Columns shelf.
+  4. Filter: Drag [Restaurant_Segment] to Filters shelf -> Select only "Hidden Gem".
+  5. Click Sort icon (Descending) on toolbar.
+  6. Drag AVG([Average_Cost_Clean]) to Color mark (Sequential Teal).
+  7. Drag CNTD([Restaurant_ID]) to Label mark.
+  8. Filter to Top 10 Localities.
+
+--------------------------------------------------------------------------------
+WORKSHEET 7: Heatmap_Price_Rating (Lab 6 Highlight Table)
+--------------------------------------------------------------------------------
+- Purpose: Cross-tabulate Price Tiers with Customer Rating Tiers.
+- Setup:
+  1. Rename sheet to: Heatmap_Price_Rating
+  2. Drag [Price_Tier] to Columns shelf.
+  3. Drag [Rating_Text] to Rows shelf.
+  4. Drag CNT([Restaurant_ID]) to Color mark.
+  5. In Marks card, change mark type from Automatic to "Square".
+  6. Drag CNT([Restaurant_ID]) to Label mark.
+
+--------------------------------------------------------------------------------
+WORKSHEET 8: Table_Personalized_Ranking (Lab 7.1 & 7.3 Core Engine)
+--------------------------------------------------------------------------------
+- Purpose: Interactive Top-N ranked restaurant table driven by Relevance Score.
+- Setup:
+  1. Rename sheet to: Table_Personalized_Ranking
+  2. Drag [Restaurant_Name] to Rows shelf.
+  3. Drag [Locality] to Rows shelf (next to Restaurant Name).
+  4. Drag [Primary_Cuisine] to Rows shelf.
+  5. Drag [Rank Relevance] to Rows shelf as the FIRST pill (Discrete).
+  6. Drag Measure Values to Text mark. In Measure Values card keep:
+     - SUM([Relevance Score])
+     - AVG([Aggregate_Rating])
+     - AVG([Average_Cost_Clean])
+     - SUM([Votes])
+  7. Filter Shelf Settings:
+     - Drag [Is_Rated] to Filters -> Select 1.
+     - Drag [In Top N Filter] to Filters -> Select True (Compute using: Table Down).
+     - Drag [Delivery Match Filter] to Filters -> Select True.
+     - Drag [Rating Eligibility Filter] to Filters -> Select True.
+  8. Sort [Restaurant_Name] descending by SUM([Relevance Score]).
+
+--------------------------------------------------------------------------------
+WORKSHEET 9: Benchmark_Rank_Comparison (Traditional vs Proposed)
+--------------------------------------------------------------------------------
+- Purpose: Show side-by-side rank differences between Popularity sort and Relevance sort.
+- Setup:
+  1. Rename sheet to: Benchmark_Rank_Comparison
+  2. Drag [Restaurant_Name] to Rows shelf.
+  3. Drag [Rank Traditional] and [Rank Relevance] to Columns shelf.
+  4. Set Marks to Circle or Bar.
+  5. Drag [In Top N Filter] to Filters shelf -> Select True.
+
+--------------------------------------------------------------------------------
+WORKSHEET 10: Score_Decomposition (Component Breakdown)
+--------------------------------------------------------------------------------
+- Purpose: Show transparent point breakdown (Quality, Popularity, Budget, Service).
+- Setup:
+  1. Rename sheet to: Score_Decomposition
+  2. Drag [Restaurant_Name] to Rows shelf.
+  3. Drag [Measure Values] to Columns shelf.
+  4. In Measure Values card, keep:
+     - [Score Quality]
+     - [Score Popularity]
+     - [Score Budget]
+     - [Score Service]
+  5. Drag [Measure Names] to Color mark.
+  6. Set Marks card to "Bar" (creates a Stacked Bar Chart summing to total utility).
+  7. Filter: [In Top N Filter] = True.
+
+================================================================================
+STEP 5: ASSEMBLING DASHBOARD 1 — RESTAURANT ECOSYSTEM OVERVIEW
+================================================================================
+1. Click "New Dashboard" icon at bottom.
+2. In left pane, set Size to "Fixed size" -> 1366 x 768.
+3. Rename dashboard tab: "1. Ecosystem Overview".
+4. Add Layout Containers:
+   - Drag a Vertical Container onto the blank canvas.
+   - Top Header: Add a Text Object:
+     * Title: "ZOMATO RESTAURANT DISCOVERY: ECOSYSTEM & SPATIAL LANDSCAPE"
+     * Font: Tableau Bold, 18pt, Dark Navy (#1E293B).
+   - Drag [BAN_Key_Metrics] into top horizontal container (Height: 90px).
+   - Split middle into two columns:
+     * Left (Width 55%): Drag [Map_Spatial_Density].
+     * Right (Width 45%): Drag [Treemap_Cuisines] on top, [Hist_Cost_Distribution] below it.
+5. Interactive Filter:
+   - Click [Treemap_Cuisines] -> Click the Funnel icon ("Use as Filter").
+   - Now clicking "North Indian" filters the Map and Cost histogram live!
+
+================================================================================
+STEP 6: ASSEMBLING DASHBOARD 2 — STRATEGIC SEGMENTATION (LOD MATRIX)
+================================================================================
+1. Click "New Dashboard" icon. Size: 1366 x 768.
+2. Rename dashboard tab: "2. Strategic Segmentation".
+3. Header: Text object -> "STRATEGIC RESTAURANT SEGMENTATION (LOD ANALYSIS)".
+4. Layout:
+   - Left side (60% width): Drag [Scatter_LOD_Segmentation].
+   - Right side (40% width):
+     * Top: Drag [Bar_Hidden_Gems_Locality].
+     * Bottom: Drag [Heatmap_Price_Rating].
+5. Interactive Filter:
+   - Click [Scatter_LOD_Segmentation] -> Enable "Use as Filter".
+   - Clicking the "Hidden Gem" quadrant instantly filters the locality bar chart and heatmap.
+
+================================================================================
+STEP 7: ASSEMBLING DASHBOARD 3 — PERSONALIZED RANKING SIMULATOR
+================================================================================
+1. Click "New Dashboard" icon. Size: 1366 x 768.
+2. Rename dashboard tab: "3. Ranking Simulator".
+3. Header: Text object -> "PERSONALIZED RESTAURANT RELEVANCE SIMULATOR".
+4. Layout:
+   - Left Sidebar (Width 22%): Parameter Control Panel
+     * Drag Parameter controls:
+       - [p Preset] (Dropdown)
+       - [p Budget] (Slider)
+       - [p Min Rating] (Slider)
+       - [p Top N] (Slider)
+       - [p Want Online] (Dropdown)
+     * Add descriptive text box:
+       "Adjust sliders to simulate personalized consumer preferences in real time."
+   - Center Area (Width 50%): Drag [Table_Personalized_Ranking].
+   - Right Area (Width 28%): Drag [Score_Decomposition] on top, [Benchmark_Rank_Comparison] below.
+5. Test Interactivity:
+   - Move [p Budget] slider from Rs. 800 to Rs. 400 -> Table updates instantly.
+   - Switch [p Preset] from 'Balanced' to 'Budget' -> Notice rank shifts immediately!
+
+================================================================================
+STEP 8: CREATING THE TABLEAU STORY (LAB 10 SYLLABUS ALIGNMENT)
+================================================================================
+1. Click "New Story" icon at bottom (book icon).
+2. Set Story Size: 1366 x 768.
+3. Story Point 1:
+   - Drag "1. Ecosystem Overview" onto canvas.
+   - Caption: "Market Reality: Severe Delhi-NCR concentration with extreme review skew."
+4. Click "Add blank point" -> Story Point 2:
+   - Drag "2. Strategic Segmentation" onto canvas.
+   - Caption: "The 5-Star Trap: 194 Hidden Gems buried by legacy review volume."
+5. Click "Add blank point" -> Story Point 3:
+   - Drag "3. Ranking Simulator" onto canvas.
+   - Caption: "Relevance Prototype: Surfacing 90% new, budget-compliant dining choices."
+6. Click "Add blank point" -> Story Point 4:
+   - Add Text / Summary Dashboard.
+   - Caption: "Strategic Recommendations: Algorithmic Badging and Multi-Slider Search."
+
+================================================================================
+STEP 9: SAVING AND PUBLISHING TO TABLEAU PUBLIC
+================================================================================
+1. Local Save:
+   - Go to File -> Save As...
+   - Choose format: "Tableau Packaged Workbook (*.twbx)".
+   - Save as: Zomato_Discovery_Interactive_System.twbx
+2. Cloud Publish to Tableau Public Profile:
+   - Go to File -> "Save to Tableau Public As...".
+   - Enter your Tableau Public login credentials (email and password).
+   - Workbook Title: "Beyond the 5-Star Trap: Zomato Restaurant Discovery & Ranking"
+   - Click "Save". Tableau will upload the packaged extract to the cloud.
+   - Once uploaded, Tableau Public will open your live interactive URL in your browser!
+   - Copy the link for your university lab record and presentation submission.
+
+================================================================================
+END OF IMPLEMENTATION GUIDE
+================================================================================
+
