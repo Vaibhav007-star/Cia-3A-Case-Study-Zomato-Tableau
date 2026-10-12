@@ -84,11 +84,12 @@ $$\text{Relevance Score} = \frac{w_r \cdot S_{\text{rating}} + w_e \cdot S_{\tex
 │   ├── prepare_zomato_data.py            # Automated Python ETL data quality pipeline
 │   ├── eda_analysis.py                   # Exploratory statistics & validation
 │   └── generate_star_schema.py           # Publication-grade Star Schema renderer
+├── Zomato_Discovery_CIA_IIIB_Professional.pptx # Professional 11-slide PowerPoint presentation with cards & visuals
+├── PPT_Slide_Deck_Content.txt            # Complete 11-slide presentation text & script for AI builders
+├── CIA_IIIB_Presentation_Deck.md         # Markdown presentation deck with viva script
 ├── Zomato_Star_Schema.png                # High-resolution (300 DPI) dimensional model
 ├── Zomato_Star_Schema_Specification.md   # Kimball data warehousing specification & SQL DDL
 ├── CIA_IIIB_Zomato_Case_Study_Report.md  # Formal 3-5 page university case study report
-├── CIA_IIIB_Presentation_Deck.md         # 10-slide presentation deck with viva script
-├── PPT_Slide_Deck_Content.txt            # Ready-to-paste text for presentation deck builders
 ├── Tableau_Step_by_Step_Guide.txt        # Full guide to build all 3 dashboards in Tableau
 ├── Tableau_Calculated_Fields_Formulas.txt# Copy-paste calculated fields dictionary
 ├── Zomato_Discovery.twbx                 # Packaged Tableau workbook
@@ -111,3 +112,4 @@ py scripts/generate_star_schema.py
 ```
 
 Open `Zomato_Discovery.twbx` in **Tableau Public** and follow [`Tableau_Step_by_Step_Guide.txt`](Tableau_Step_by_Step_Guide.txt) to explore the 3 interactive dashboards and narrative story points.
+
